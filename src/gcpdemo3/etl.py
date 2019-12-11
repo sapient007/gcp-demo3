@@ -100,16 +100,26 @@ def translate_book(credentials, in_path, out_path, source, target, chunk_size):
         out_file.writelines(translated_lines)
 
 
-def concat_files(in_paths, out_path):
+def concat_label_files(in_paths, out_path, label):
     """
 
     :param in_paths:
     :param out_path:
+    :param label:
     :return:
     """
 
     with open(out_path, 'w+', encoding='utf8') as out_file:
+
+        # iterate through files and concatenate
         for in_path in in_paths:
             with open(in_path, 'r', encoding='utf8') as in_file:
                 lines = in_file.readlines()
+
+                # add label to each line and write to file
+                lines = list(map(
+                    lambda line: line.replace('\n', f',{label}\n'),
+                    lines
+                ))
+
                 out_file.writelines(lines)
