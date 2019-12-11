@@ -2,5 +2,6 @@ credentials/
 src/build/
 src/dist/
 src/gcpdemo3.egg-info/
+notebooks/temp
 *.idea*
 *ipynb_checkpoints*
