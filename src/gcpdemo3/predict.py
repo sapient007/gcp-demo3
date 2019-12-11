@@ -57,7 +57,7 @@ class Predictor(object):
 
             rows.append({
                 'native_score': native_score,
-                'transl_score': transl_score,
+                'translated_score': transl_score,
                 'machine_score': machine_score,
                 'line': line
             })
