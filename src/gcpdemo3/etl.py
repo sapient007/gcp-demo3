@@ -3,9 +3,9 @@ from google.cloud import translate
 
 def process_book(in_path, out_path):
     """
-
-    :param in_path:
-    :param out_path:
+    Process a single book file and write process file
+    :param in_path: raw book file
+    :param out_path: processed book file
     :return:
     """
 
@@ -38,13 +38,13 @@ def process_book(in_path, out_path):
 
 def translate_book(credentials, in_path, out_path, source, target, chunk_size):
     """
-
-    :param credentials:
-    :param in_path:
-    :param out_path:
-    :param source:
-    :param target:
-    :param chunk_size:
+    Translate pre-processed book file
+    :param credentials: credential object for AutoML
+    :param in_path: processed book file
+    :param out_path: translated book file
+    :param source: source language
+    :param target: target language
+    :param chunk_size: chunk size to translate text in
     :return:
     """
 
@@ -88,8 +88,6 @@ def translate_book(credentials, in_path, out_path, source, target, chunk_size):
             # append to final translated lines
             translated_lines += translated
 
-            break  # TODO remove
-
     with open(out_path, 'w+', encoding='utf8') as out_file:
 
         # add newline to each line and write to file
@@ -102,10 +100,10 @@ def translate_book(credentials, in_path, out_path, source, target, chunk_size):
 
 def concat_label_files(in_paths, out_path, label):
     """
-
-    :param in_paths:
-    :param out_path:
-    :param label:
+    Concatenate csv files and add labels
+    :param in_paths: csv files to concatenate
+    :param out_path: concatenated csv file
+    :param label: label to add to end of each line
     :return:
     """
 
@@ -118,7 +116,7 @@ def concat_label_files(in_paths, out_path, label):
 
                 # add label to each line and write to file
                 lines = list(map(
-                    lambda line: line.replace('\n', f',{label}\n'),
+                    lambda line: line.replace(',', '').replace('\n', f',{label}\n'),
                     lines
                 ))
 

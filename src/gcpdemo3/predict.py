@@ -8,14 +8,14 @@ from google.cloud import automl_v1beta1
 
 class Predictor(object):
     """
-    TODO: description
+    Predictor object for model predictions
     """
 
     def __init__(self, credentials, model_name):
         """
-        TODO: description
-        :param credentials:
-        :param model_name:
+        Create predictor object
+        :param credentials: credential object for AutoML
+        :param model_name: deployed model name in GCP
         """
 
         self.model_name = model_name
@@ -25,16 +25,17 @@ class Predictor(object):
             client_options=self.options
         )
 
-    def predict(self, text):
+    def predict(self, text_df):
         """
-        TODO: description
-        :param text:
-        :return:
+        Predict text using deployed model
+        :param text_df: DataFrame containing lines of text and labels
+        :return: DataFrame with predictions
         """
 
         rows = []
-        for line in text:
-            line = line.strip('\n')
+        for row in text_df.itertuples():
+            line = row.line
+            label = row.label
 
             response = self.prediction_client.predict(
                 self.model_name,
@@ -56,6 +57,7 @@ class Predictor(object):
                     transl_score = result.classification.score * 100
 
             rows.append({
+                'label': label,
                 'native_score': native_score,
                 'translated_score': transl_score,
                 'machine_score': machine_score,
