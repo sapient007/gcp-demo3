@@ -1,4 +1,4 @@
-from google.cloud import translate
+from google.cloud import translate_v2 as translate
 
 
 def process_book(in_path, out_path):
