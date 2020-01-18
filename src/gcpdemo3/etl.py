@@ -1,3 +1,5 @@
+import io
+from typing import List
 from google.cloud import translate_v2 as translate
 from google.cloud import storage
 from google.cloud.storage import Bucket
@@ -11,23 +13,23 @@ def authenticate_gcs() -> storage.Client:
 
 def get_gcs_object(gcs_client: storage.Client,
                    bucket_name: str,
-                   file_name: str) -> List[dict]:
+                   file_name: str) -> io.StringIO:
     """Downloads object file from GCS.
     Args:
         gcs_client: google.cloud.storage.Client
         bucket_name: String representing bucket name.
         file_name: String representing file name.
     Returns:
-        List of dictionaries with transcript metadata
+        file like object 
     """
     bucket = gcs_client.get_bucket(bucket_name)
-    object = bucket.blob(file_name)
-    return json.loads(object.download_as_string().decode('utf-8'))
+    blob = bucket.get_blob(file_name)
+    return io.StringIO(blob.download_as_string())
 
 def put_gcs_object(gcs_client: storage.Client,
                    bucket_name: str,
                    file_name: str,
-                   lines: list):
+                   lines: List[str]):
     """Put object file from GCS.
     Args:
         gcs_client: google.cloud.storage.Client
@@ -41,124 +43,160 @@ def put_gcs_object(gcs_client: storage.Client,
 def process_book(bucket, in_file_name, out_file_name):
     """
     Process a single book file and write process file
-    :param in_path: raw book file
-    :param out_path: processed book file
-    :return:
+    Args:
+        bucket: GCS bucket name
+        in_file_name: input file name for the book file
+        out_file_name: output file name for the processed book
+    Returns:
     """
-    #fetch file from GCS
-    gcs_client = gcs_transcript_utils.authenticate_gcs()
-    get_gcs_object
+    # fetch file from GCS
+    gcs_client = authenticate_gcs()
+    downloaded_file = get_gcs_object(gcs_client, bucket, in_file_name)
+
+    # skip first 15 header lines
+    lines = downloaded_file.readlines()[15:]
+
+    # get rid of head, tail, underscores, commas, and quotation marks
+    lines = list(map(
+        lambda line: line.strip().split('>')[1].split('<')[0].replace('_', '').replace(',', '').replace('"',
+                                                                                                        ''),
+        lines
+    ))
+
+    # filter out lines less than 10 words and greater than 25 words
+    lines = list(filter(
+        lambda line: (len(line.split()) > 10) & (len(line.split()) < 25),
+        lines
+    ))
+
+    # add newline to each line and write to file
+    lines = list(map(
+        lambda line: f'{line}\n',
+        lines
+    ))
+    put_gcs_object(gcs_client, bucket, out_file_name, lines)
 
 
-    with open(out_path, 'w+', encoding='utf8') as out_file:
-        with open(in_path, 'r', encoding='utf8') as in_file:
-
-            # skip first 15 header lines
-            lines = in_file.readlines()[15:]
-
-            # get rid of head, tail, underscores, commas, and quotation marks
-            lines = list(map(
-                lambda line: line.strip().split('>')[1].split('<')[0].replace('_', '').replace(',', '').replace('"',
-                                                                                                                ''),
-                lines
-            ))
-
-            # filter out lines less than 10 words and greater than 25 words
-            lines = list(filter(
-                lambda line: (len(line.split()) > 10) & (len(line.split()) < 25),
-                lines
-            ))
-
-            # add newline to each line and write to file
-            lines = list(map(
-                lambda line: f'{line}\n',
-                lines
-            ))
-            out_file.writelines(lines)
-
-
-def translate_book(credentials, in_path, out_path, source, target, chunk_size):
+def translate_book(credentials, bucket, in_file_name, out_file_name, source, target, chunk_size):
     """
     Translate pre-processed book file
-    :param credentials: credential object for AutoML
-    :param in_path: processed book file
-    :param out_path: translated book file
-    :param source: source language
-    :param target: target language
-    :param chunk_size: chunk size to translate text in
-    :return:
+    Args:
+        credentials: credential object for AutoML
+        bucket: GCS bucket name
+        in_file_name: input file name for the book file
+        out_file_name: output file name for the processed book
+        source: source language
+        target: target language
+        chunk_size: chunk size to translate text in
+    Returns:
     """
+    # fetch file from GCS
+    gcs_client = authenticate_gcs()
+    downloaded_file = get_gcs_object(gcs_client, bucket, in_file_name)
 
-    with open(in_path, 'r', encoding='utf8') as in_file:
+    # remove newline characters
+    lines = list(map(
+        lambda line: line.replace('\n', ''),
+        downloaded_file.readlines()
+    ))
 
-        # remove newline characters
-        lines = list(map(
-            lambda line: line.replace('\n', ''),
-            in_file.readlines()
+    idx = 0
+    translated_lines = []
+    for jdx in range(chunk_size, len(lines) + 300, chunk_size):
+
+        # chunk lines for translation
+        if jdx > len(lines):
+            chunk = lines[idx:]
+        else:
+            chunk = lines[idx:jdx]
+            idx = jdx
+
+        # add @ delimeter to separate sentences and join chunk
+        chunk = '@'.join(chunk)
+
+        # translate chunk
+        client = translate.Client(credentials=credentials)
+        translated = client.translate(
+            chunk,
+            source_language=source,
+            target_language=target
+        )
+        translated = translated['translatedText']
+
+        # separate at the @ delimeter and strip white space
+        translated = list(map(
+            lambda sentence: sentence.strip(),
+            translated.split('@')
         ))
 
-        idx = 0
-        translated_lines = []
-        for jdx in range(chunk_size, len(lines) + 300, chunk_size):
+        # append to final translated lines
+        translated_lines += translated
 
-            # chunk lines for translation
-            if jdx > len(lines):
-                chunk = lines[idx:]
-            else:
-                chunk = lines[idx:jdx]
-                idx = jdx
-
-            # add @ delimeter to separate sentences and join chunk
-            chunk = '@'.join(chunk)
-
-            # translate chunk
-            client = translate.Client(credentials=credentials)
-            translated = client.translate(
-                chunk,
-                source_language=source,
-                target_language=target
-            )
-            translated = translated['translatedText']
-
-            # separate at the @ delimeter and strip white space
-            translated = list(map(
-                lambda sentence: sentence.strip(),
-                translated.split('@')
-            ))
-
-            # append to final translated lines
-            translated_lines += translated
-
-    with open(out_path, 'w+', encoding='utf8') as out_file:
-
-        # add newline to each line and write to file
-        translated_lines = list(map(
-            lambda line: f'{line}\n',
-            translated_lines
-        ))
-        out_file.writelines(translated_lines)
+    # add newline to each line and write to file
+    translated_lines = list(map(
+        lambda line: f'{line}\n',
+        translated_lines
+    ))
+        
+    put_gcs_object(gcs_client, bucket, out_file_name, translated_lines)
 
 
-def concat_label_files(in_paths, out_path, label):
+def concat_label_files(bucket, in_file_names, out_file_name, label):
     """
     Concatenate csv files and add labels
-    :param in_paths: csv files to concatenate
-    :param out_path: concatenated csv file
-    :param label: label to add to end of each line
-    :return:
+    Args:
+        bucket: GCS bucket name
+        in_file_names: csv files to concatenate
+        out_file_name: concatenated csv file
+    Returns:
     """
+    
+    # fetch file from GCS
+    gcs_client = authenticate_gcs()
+    all_lines = []
 
-    with open(out_path, 'w+', encoding='utf8') as out_file:
+    for in_file_name in in_file_names:
+        downloaded_file = get_gcs_object(gcs_client, bucket, in_file_name)
+        lines = downloaded_file.readlines()
+        # add label to each line and write to file
+        lines = list(map(
+            lambda line: line.replace(',', '').replace('\n', f',{label}\n'),
+            lines
+        ))
+        all_lines.append(lines)
+    
+    put_gcs_object(gcs_client, bucket, out_file_name, all_lines)
 
-        # iterate through files and concatenate
-        for in_path in in_paths:
-            with open(in_path, 'r', encoding='utf8') as in_file:
-                lines = in_file.readlines()
+def create_data_sets(bucket, in_file_names, train_file_name, predict_file_name):
+    """
+    Concatenate csv files and split up into training sets and testing sets
+    Args:
+        bucket: GCS bucket name
+        in_file_names: csv files to concatenate
+        train_file_name: file name for the training set
+        predict_file_name: file name for the testing set
+    Returns:
+    """
+    # fetch file from GCS
+    gcs_client = authenticate_gcs()
+    train_lines = []
+    test_lines = []
 
-                # add label to each line and write to file
-                lines = list(map(
-                    lambda line: line.replace(',', '').replace('\n', f',{label}\n'),
-                    lines
-                ))
+    for in_file_name in in_file_names:
+        downloaded_file = get_gcs_object(gcs_client, bucket, in_file_name)
+        lines = downloaded_file.readlines()
+        # split into training or testing sets
+        train_lines.append(lines[:-50])
+        test_lines.append(lines[-50:])
+    
+    put_gcs_object(gcs_client, bucket, train_file_name, train_lines)
+    put_gcs_object(gcs_client, bucket, predict_file_name, test_lines)
 
-                out_file.writelines(lines)
+
+    
+
+   
+
+
+
+
