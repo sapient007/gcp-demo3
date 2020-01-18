@@ -1,13 +1,38 @@
 from google.cloud import translate_v2 as translate
+from google.cloud import storage
+from google.cloud.storage import Bucket
 
+def authenticate_gcs() -> storage.Client:
+    """Creates Python Client Object to access GCS API
+    Returns:
+      Object representing GCS Client
+    """
+    return storage.Client()
 
-def process_book(in_path, out_path):
+def get_gcs_object(gcs_client: storage.Client,
+                   bucket_name: str,
+                   file_name: str) -> List[dict]:
+    """Downloads object file from GCS.
+    Args:
+        gcs_client: google.cloud.storage.Client
+        bucket_name: String representing bucket name.
+        file_name: String representing file name.
+    Returns:
+        List of dictionaries with transcript metadata
+    """
+    bucket = gcs_client.get_bucket(bucket_name)
+    object = bucket.blob(file_name)
+    return json.loads(object.download_as_string().decode('utf-8'))
+
+def process_book(in_file_name, out_file_name):
     """
     Process a single book file and write process file
     :param in_path: raw book file
     :param out_path: processed book file
     :return:
     """
+
+
 
     with open(out_path, 'w+', encoding='utf8') as out_file:
         with open(in_path, 'r', encoding='utf8') as in_file:
