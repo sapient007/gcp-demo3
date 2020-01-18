@@ -24,14 +24,30 @@ def get_gcs_object(gcs_client: storage.Client,
     object = bucket.blob(file_name)
     return json.loads(object.download_as_string().decode('utf-8'))
 
-def process_book(in_file_name, out_file_name):
+def put_gcs_object(gcs_client: storage.Client,
+                   bucket_name: str,
+                   file_name: str,
+                   lines: list):
+    """Put object file from GCS.
+    Args:
+        gcs_client: google.cloud.storage.Client
+        bucket_name: String representing bucket name.
+        file_name: String representing file name.
+    """
+    bucket = gcs_client.get_bucket(bucket_name)
+    object = bucket.blob(file_name)
+    object.upload_from_string(lines, content_type='text/plain')
+
+def process_book(bucket, in_file_name, out_file_name):
     """
     Process a single book file and write process file
     :param in_path: raw book file
     :param out_path: processed book file
     :return:
     """
-
+    #fetch file from GCS
+    gcs_client = gcs_transcript_utils.authenticate_gcs()
+    get_gcs_object
 
 
     with open(out_path, 'w+', encoding='utf8') as out_file:
