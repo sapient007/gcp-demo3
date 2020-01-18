@@ -1,39 +1,44 @@
 from google.cloud import translate_v2 as translate
+from google.cloud import storage
 
 
-def process_book(in_path, out_path):
+def process_book(bucket, path):
     """
     Process a single book file and write process file
-    :param in_path: raw book file
-    :param out_path: processed book file
+    :param bucket: bucket name
+    :param path: raw book file
     :return:
     """
 
-    with open(out_path, 'w+', encoding='utf8') as out_file:
-        with open(in_path, 'r', encoding='utf8') as in_file:
+    client = storage.Client()
+    bucket = client.get_bucket(bucket)
+    blob = bucket.get_blob(path)
+    fn = blob.filename  # lookup actual
+    downloaded_file = blob.download_as_file()
 
-            # skip first 15 header lines
-            lines = in_file.readlines()[15:]
+    # skip first 15 header lines
+    lines = downloaded_file.readlines()[15:]
 
-            # get rid of head, tail, underscores, commas, and quotation marks
-            lines = list(map(
-                lambda line: line.strip().split('>')[1].split('<')[0].replace('_', '').replace(',', '').replace('"',
-                                                                                                                ''),
-                lines
-            ))
+    # get rid of head, tail, underscores, commas, and quotation marks
+    lines = list(map(
+        lambda line: line.strip().split('>')[1].split('<')[0].replace(
+            '_', '').replace(',', '').replace('"', ''),
+            lines
+    ))
 
-            # filter out lines less than 10 words and greater than 25 words
-            lines = list(filter(
-                lambda line: (len(line.split()) > 10) & (len(line.split()) < 25),
-                lines
-            ))
+    # filter out lines less than 10 words and greater than 25 words
+    lines = list(filter(
+        lambda line: (len(line.split()) > 10) & (len(line.split()) < 25),
+        lines
+    ))
 
-            # add newline to each line and write to file
-            lines = list(map(
-                lambda line: f'{line}\n',
-                lines
-            ))
-            out_file.writelines(lines)
+    # add newline to each line and write to file
+    lines = list(map(
+        lambda line: f'{line}\n',
+        lines
+    ))
+    blob = bucket.blob('{}_processed'.format(fn), lines))
+    blob.upload_from_string(lines,content_type='text/plain')
 
 
 def translate_book(credentials, in_path, out_path, source, target, chunk_size):
