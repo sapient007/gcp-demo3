@@ -54,7 +54,7 @@ free to use the source code methods as you see fit.
 ### Using Google Cloud Storage (GCS) Python Client
 Please follow directions to the detailed doc to set up client library [GCS Client Lib](https://cloud.google.com/storage/docs/reference/libraries#client-libraries-install-python).
 
-You will need to set up authentication for a service account to interact with files inside the GCS buckets
+You will need to set up authentication for a service account to interact with files inside the GCS buckets. Additional information on service account setup is located in [GCP Authentication](https://cloud.google.com/docs/authentication/production).
 
 ### Whitepaper
 Additional information regarding the process of creating this demo can be found at the following location:
