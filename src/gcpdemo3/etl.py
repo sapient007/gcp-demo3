@@ -2,7 +2,7 @@ from google.cloud import translate_v2 as translate
 from google.cloud import storage
 
 
-def process_book(bucket, path):
+def process_book(bucket, in_file_name, out_file_name):
     """
     Process a single book file and write process file
     :param bucket: bucket name
@@ -12,8 +12,7 @@ def process_book(bucket, path):
 
     client = storage.Client()
     bucket = client.get_bucket(bucket)
-    blob = bucket.get_blob(path)
-    fn = blob.filename  # lookup actual
+    blob = bucket.get_blob(in_file_name)
     downloaded_file = blob.download_as_file()
 
     # skip first 15 header lines
@@ -37,9 +36,8 @@ def process_book(bucket, path):
         lambda line: f'{line}\n',
         lines
     ))
-    blob = bucket.blob('{}_processed'.format(fn), lines))
-    blob.upload_from_string(lines,content_type='text/plain')
-
+    blob = bucket.blob(out_file_name)
+    blob.upload_from_string(lines, content_type='text/plain')
 
 def translate_book(credentials, in_path, out_path, source, target, chunk_size):
     """
