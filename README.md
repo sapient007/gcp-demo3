@@ -51,6 +51,11 @@ Please use this link to install the [GCloud SDK](https://cloud.google.com/sdk/do
 You may run the workflow from the provided Jupyter Notebook in notebooks/gcpdemo3.ipynb or feel
 free to use the source code methods as you see fit.
 
+### Using Google Cloud Storage (GCS) Python Client
+Please follow directions to the detailed doc to set up client library [GCS Client Lib](https://cloud.google.com/storage/docs/reference/libraries#client-libraries-install-python).
+
+You will need to set up authentication for a service account to interact with files inside the GCS buckets
+
 ### Whitepaper
 Additional information regarding the process of creating this demo can be found at the following location:
 
